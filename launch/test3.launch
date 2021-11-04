@@ -1,0 +1,5 @@
+<!--Testing go to goal behaviour-->
+<launch>
+    <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_empty_world.launch"/>
+    <node name="gtg_server" pkg="bug0" type="_01Test3.py" output="screen"/>
+</launch>

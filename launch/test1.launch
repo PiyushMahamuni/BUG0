@@ -1,0 +1,6 @@
+<!--To test obstacle detection-->
+<launch>
+    <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_empty_world.launch"/>
+    <node name="obstacle_detector" pkg="bug0" type="_01Test1.py" output="screen"/>
+    <node name="rotator" pkg="bug0" type="_02Test1.py"/>
+</launch>

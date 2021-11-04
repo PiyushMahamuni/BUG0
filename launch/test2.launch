@@ -1,0 +1,6 @@
+<!--Percepting free spaces around robot-->
+<launch>
+    <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_empty_world.launch"/>
+    <node name="percpetion_node" pkg="bug0" type="_01Test2.py" output="screen"/>
+    <node name="rotator" pkg="bug0" type="_02Test1.py"/>
+</launch>

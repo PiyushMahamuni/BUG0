@@ -1,0 +1,2 @@
+float32 yaw_error
+float32 dist_error
