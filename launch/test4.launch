@@ -1,0 +1,8 @@
+<!-- TO test wall following algorithm -->
+<!-- After running this file, add an obstacle in the simulation in front of robot and 
+run `rosservice call /follow_wall "data: True"`-->
+
+<launch>
+    <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_empty_world.launch"/>
+    <node name="wall_follower_server" pkg="bug0" type="_02Test4.py"/>
+</launch>

@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/phineas/ros_ws/src/bug0/build/devel/setup.sh

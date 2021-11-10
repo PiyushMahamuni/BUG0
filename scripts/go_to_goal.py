@@ -15,9 +15,9 @@ from sys import exit
 # CONSTANTS
 NODE_NAME = "gtg_server"
 # services
-GTG_SRV = "go_to_goal"
+GTG_SRV = "gtg/activate"
 UG_SRV = "update_goal"
-SET_VEL_SRV = "set_vel"
+SET_VEL_SRV = "gtg/set_vel"
 # topics
 VEL_TOPIC = "cmd_vel"
 ERR_TOPIC = "nav_error"

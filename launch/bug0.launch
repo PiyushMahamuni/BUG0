@@ -1,0 +1,10 @@
+<!-- THE BUG0 ALGORITHM IMPLEMENTED FOR TURTLEBOT3 -->
+<launch>
+    <arg name="x_goal" default="5"/>
+    <arg name="y_goal" defualt="5"/>
+    <include file="$(find turtlebote3_gazebo)/launch/turtlebot3_empty_world.launch"/>
+    <node name="bug0" pkg="bug0" type="main.py" output="screen">
+        <param name="x_goal" value="$(arg x_goal)" type="string"/>
+        <param name="y_goal" value="$(arg y_goal)" type="string"/>
+    </node>
+</launch>
