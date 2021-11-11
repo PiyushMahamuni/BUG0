@@ -21,9 +21,9 @@ SV_SRV = "fw/set_vel"
 SCAN_TOPIC = "scan"
 VEL_TOPIC = "cmd_vel"
 # navigation
-SIDE_CLEARANCE = 0.20
-FRONT_CLEARANCE = 0.50
-OFFSET = 0.035
+SIDE_CLEARANCE = 0.18
+FRONT_CLEARANCE = 0.38
+OFFSET = 0.032
 DIST2WALL = 0.7
 
 
@@ -258,7 +258,7 @@ def follow_wall():
         range1 = scan.ranges[ind1]
         range2 = scan.ranges[ind2]
         err = range2 - range1
-        if isinf(range1) or isinf(range2):
+        if range1 > DIST2WALL or range2 > DIST2WALL or fabs(err) > 0.6:
             vel_cmd.angular.z = 0
         else:
             vel_cmd.angular.z = gain * err
@@ -329,13 +329,15 @@ def setup():
 
 def main():
     setup()
-    
     loop_rate = rospy.Rate(60)
     while not rospy.is_shutdown():
         if not machine_states["Inactive"]:
             take_action()
         else:
-            loop_rate.sleep()
+            try:
+                loop_rate.sleep()
+            except rospy.ROSInterruptException:
+                pass
 
 
 if __name__ == "__main__":
