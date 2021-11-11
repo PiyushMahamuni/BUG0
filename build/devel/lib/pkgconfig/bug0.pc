@@ -1,8 +1,0 @@
-prefix=/home/phineas/ros_ws/src/bug0/build/devel
-
-Name: bug0
-Description: Description of bug0
-Version: 0.0.0
-Cflags: -I/home/phineas/ros_ws/src/bug0/build/devel/include
-Libs: -L${prefix}/lib 
-Requires: 
