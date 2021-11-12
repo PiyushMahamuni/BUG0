@@ -1,6 +1,6 @@
 <!-- THE BUG0 ALGORITHM IMPLEMENTED FOR TURTLEBOT3 -->
 <launch>
-    <arg name="x_goal" default="-2.0"/>
+    <arg name="x_goal" default="2.0"/>
     <arg name="y_goal" default="0.0"/>
     <include file="$(find turtlebot3_gazebo)/launch/turtlebot3_stage_4.launch"/>
     <node name="follow_wall_server" pkg="bug0" type="follow_wall.py" output="screen"/>
