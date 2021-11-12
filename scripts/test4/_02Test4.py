@@ -7,10 +7,10 @@
 import rospy
 from bug0.srv import SetVel, SetVelRequest, SetVelResponse
 from math import pi, fabs, sin, cos, radians, isinf
+from rospy.exceptions import ROSInterruptException
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
-from time import sleep
 
 # CONSTANTS
 NODE_NAME = "follow_wall_server"
@@ -68,7 +68,7 @@ def activate_handler(req: SetBoolRequest) -> SetBoolResponse:
 def sv_handler(req: SetVelRequest) -> SetVelResponse:
     vel.lin_vel = req.lin_vel
     vel.ang_vel = req.ang_vel
-    SetVelResponse(success=True)
+    return SetVelResponse(success=True)
 
 
 def map0to2pi(angle: float) -> float:
@@ -209,10 +209,7 @@ def clbk_scan(msg: LaserScan) -> None:
 def stop_robot():
     vel_cmd.linear.x = vel_cmd.angular.z = 0
     vel_pub.publish(vel_cmd)
-    try:
-        sleep(0.3)
-    except rospy.ROSInterruptException:
-        return
+    rospy.sleep(0.5)
 
 
 def find_wall():
@@ -221,10 +218,7 @@ def find_wall():
     vel_cmd.angular.z = 0
     while nt_obstacles["front"] and nt_obstacles["right"]:
         vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return
+        loop_rate.sleep()
     machine_states["Finding Wall"] = False
     if not nt_obstacles["front"]:
         machine_states["Turning Left"] = True
@@ -239,10 +233,7 @@ def turn_left():
     vel_cmd.linear.x = 0
     while not nt_obstacles["front"] or regions["right"]:
         vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return
+        loop_rate.sleep()
     stop_robot()
     machine_states["Turning Left"] = False
     machine_states["Following Wall"] = True
@@ -265,10 +256,7 @@ def follow_wall():
             if fabs(vel_cmd.angular.z) > vel.ang_vel:
                 vel_cmd.angular.z = vel.ang_vel * (1 if err > 0 else -1)
         vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return
+        loop_rate.sleep()
     machine_states["Following Wall"] = False
     if regions["right"]:
         machine_states["Turning Right"] = True
@@ -283,10 +271,8 @@ def turn_right():
     vel_cmd.linear.x = 0
     while not nt_obstacles["front"]:
         vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return
+        loop_rate.sleep()
+
     OFFSET = 0.1
     while regions["front"]:
         vel_pub.publish(vel_cmd)
@@ -339,4 +325,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ROSInterruptException:
+        pass

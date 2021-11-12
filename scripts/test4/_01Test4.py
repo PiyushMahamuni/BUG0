@@ -34,15 +34,15 @@ regions = {'front': False, 'left': False, 'right': False}
 vel_cmd = Twist()
 ang_vel = pi / 6 # 30 deg/s
 lin_vel = 0.25 # 27 cm/s
-scan = None
+scan: LaserScan = None
 # servers
-activation_srvr = None
+activation_srvr: rospy.Service = None
 # publishers
-vel_pub = None
+vel_pub: rospy.Publisher = None
 # subscrivers
-scan_sub = None
+scan_sub: rospy.Subscriber= None
 # durations
-sleep = None
+sleep: rospy.Duration = None
 machine_states = {'Finding Wall': False, 'Following Wall': False, 'Turning Right': False, 'Turning Left': False, 'Inactive': True}
 
 
@@ -89,39 +89,35 @@ def look_for_obstacles(dir: int, scan: LaserScan, fov: float=pi/2) -> tuple:
             for r in scan.ranges[start_ind:]:
                 if fabs(r * cos(angle)) < x_comp and fabs(r * sin(angle)) < y_comp:
                     is_clear = False
+                    nlw = True
                     break
                 angle += scan.angle_increment
                 if not nlw and r < DTOT:
                     nlw = True
-            if is_clear and not nlw:
+            if not nlw:
                 for r in scan.ranges[:end_ind]:
                     if fabs(r * cos(angle)) < x_comp and fabs(r * sin(angle)) < y_comp:
                         is_clear =  False
+                        nlw = True
+                        break
                     angle += scan.angle_increment
                     if not nlw and r < DTOT:
                         nlw = True
-                    if not is_clear and nlw:
-                        break
             elif is_clear:
                 for r in scan.ranges[:end_ind]:
                     if fabs(r * cos(angle)) < x_comp and fabs(r * sin(angle)) < y_comp:
                         is_clear = False
                         break
                     angle += scan.angle_increment
-            elif not nlw:
-                for r in scan.ranges[:end_ind]:
-                    if not nlw and r < DTOT:
-                        nlw = True
-                        break
 
         for r in scan.ranges[start_ind: end_ind]:
             if fabs(r* cos(angle)) < x_comp and fabs(r * sin(angle)) < y_comp:
                 is_clear = False
+                nlw = True
+                break
             angle += scan.angle_increment
             if not nlw and r < DTOT:
                 nlw = True
-            if is_clear and not nlw:
-                break
         return is_clear, nlw
     return False, False
 
@@ -163,13 +159,7 @@ def turn_left() -> None:
     vel_pub.publish(vel_cmd)
     loop_rate = rospy.Rate(60)
     vel_cmd.angular.z = ang_vel
-    while not regions["front"]:
-        vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return None
-    while regions["right"]:
+    while not regions["front"] or regions["right"]:
         vel_pub.publish(vel_cmd)
         try:
             loop_rate.sleep()
@@ -195,9 +185,6 @@ def find_wall() -> None:
             return None
     machine_states["Turning Left"] = True
     machine_states["Finding Wall"] = False
-    turn_left()
-    machine_states["Turning Left"] = False
-    machine_states["Following Wall"] = True
 
 
 def follow_wall():
@@ -246,8 +233,7 @@ def clbk_scan(msg: LaserScan) -> None:
     regions["left"], nlw = look_for_obstacles(1, msg)
     temp = temp or nlw
     regions["right"], nlw = look_for_obstacles(3, msg)
-    temp = temp or nlw
-    not_lost_wall = temp
+    not_lost_wall = temp or nlw
 
 
 def actiavation_handler(req: SetBoolRequest) -> SetBoolResponse:

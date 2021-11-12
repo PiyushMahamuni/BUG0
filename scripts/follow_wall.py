@@ -6,11 +6,10 @@
 
 import rospy
 from bug0.srv import SetVel, SetVelRequest, SetVelResponse
-from math import pi, fabs, sin, cos, radians, isinf
+from math import pi, fabs, sin, cos, radians
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 from std_srvs.srv import SetBool, SetBoolRequest, SetBoolResponse
-from time import sleep
 
 # CONSTANTS
 NODE_NAME = "follow_wall_server"
@@ -46,6 +45,8 @@ lost_wall = True
 vel_pub: rospy.Publisher = None
 # subscribers
 scan_sub: rospy.Subscriber = None
+# rates
+loop_rate: rospy.Rate = None
 
 
 
@@ -68,7 +69,7 @@ def activate_handler(req: SetBoolRequest) -> SetBoolResponse:
 def sv_handler(req: SetVelRequest) -> SetVelResponse:
     vel.lin_vel = req.lin_vel
     vel.ang_vel = req.ang_vel
-    SetVelResponse(success=True)
+    return SetVelResponse(success=True)
 
 
 def map0to2pi(angle: float) -> float:
@@ -83,7 +84,6 @@ def map0to2pi(angle: float) -> float:
 def clbk_scan(msg: LaserScan) -> None:
     global scan
     scan = msg
-    
     lst_wall = is_clear = nt_obst = True
     x_comp = FRONT_CLEARANCE
     y_comp = SIDE_CLEARANCE
@@ -98,10 +98,8 @@ def clbk_scan(msg: LaserScan) -> None:
         if x < x_comp and y < y_comp:
             lst_wall = is_clear = nt_obst = False
             break
-        elif x < x_comp1 and y < y_comp1:
-            lst_wall = is_clear = False
-        elif r < DIST2WALL:
-            lst_wall = False
+        is_clear = is_clear and (x > x_comp1 or y > y_comp1)
+        lst_wall = lst_wall and r > DIST2WALL
         angle += msg.angle_increment
     angle = 0
     end_ind = int(map0to2pi(pi / 4 - msg.angle_min) / msg.angle_increment)
@@ -112,10 +110,8 @@ def clbk_scan(msg: LaserScan) -> None:
             if x < x_comp and y < y_comp:
                 lst_wall = is_clear = nt_obst = False
                 break
-            elif x < x_comp1 and y < y_comp1:
-                lst_wall = is_clear = False
-            elif r < DIST2WALL:
-                lst_wall = False
+            lst_wall = is_clear and (x > x_comp1 and y > y_comp1)
+            lst_wall = lst_wall and r > DIST2WALL
             angle += msg.angle_increment
     elif is_clear:
         for r in msg.ranges[:end_ind]:
@@ -124,8 +120,7 @@ def clbk_scan(msg: LaserScan) -> None:
             if x < x_comp and y < y_comp:
                 is_clear = nt_obst = False
                 break
-            elif x < x_comp1 and y < y_comp1:
-                is_clear = False
+            is_clear = is_clear and (x > x_comp1 and y > y_comp1)
             angle += msg.angle_increment
     elif nt_obst:
         for r in msg.ranges[:end_ind]:
@@ -135,12 +130,10 @@ def clbk_scan(msg: LaserScan) -> None:
             angle += msg.angle_increment
     nt_obstacles["front"] = nt_obst
     regions["front"] = is_clear
-    temp = True
-    temp = lst_wall and temp
     start_ind = end_ind
     angle = pi / 4
     end_ind = int(map0to2pi(angle + pi / 2 - msg.angle_min) / msg.angle_increment)
-    lst_wall = is_clear = nt_obst = True
+    is_clear = nt_obst = True
     x_comp = SIDE_CLEARANCE
     y_comp = FRONT_CLEARANCE
     x_comp1 = x_comp + OFFSET
@@ -151,18 +144,15 @@ def clbk_scan(msg: LaserScan) -> None:
         if x < x_comp and y < y_comp:
             lst_wall = is_clear = nt_obst = False
             break
-        elif x < x_comp1 and y < y_comp1:
-            lst_wall = is_clear = False
-        elif r < DIST2WALL:
-            lst_wall = False
+        is_clear = is_clear and (x > x_comp1 or y > y_comp1)
+        lst_wall = lst_wall and r > DIST2WALL
         angle += msg.angle_increment
     nt_obstacles["left"] = nt_obst
     regions["left"] = is_clear
-    temp = lst_wall and temp
     start_ind = end_ind
-    angle = pi / 4 + pi / 2
+    angle = pi / 2 + pi / 4
     end_ind = int(map0to2pi(angle + pi / 2 - msg.angle_increment) / msg.angle_increment)
-    lst_wall = is_clear = nt_obst = True
+    is_clear = nt_obst = True
     x_comp = FRONT_CLEARANCE
     y_comp = SIDE_CLEARANCE
     x_comp1 = x_comp + OFFSET
@@ -173,18 +163,15 @@ def clbk_scan(msg: LaserScan) -> None:
         if x < x_comp and y < y_comp:
             lst_wall = is_clear = nt_obst = False
             break
-        elif x < x_comp1 and y < y_comp1:
-            lst_wall = is_clear = False
-        elif r < DIST2WALL:
-            lst_wall = False
+        is_clear = is_clear and (x > x_comp1 or y > y_comp1)
+        lst_wall = lst_wall and r > DIST2WALL
         angle += msg.angle_increment
     nt_obstacles["back"] = nt_obst
     regions["back"] = is_clear
-    temp = temp and lst_wall
     start_ind = end_ind
     angle = pi + pi / 4
     end_ind = int(map0to2pi(angle + pi / 2 - msg.angle_min) / msg.angle_increment)
-    lst_wall = is_clear = nt_obst = True
+    is_clear = nt_obst = True
     x_comp = SIDE_CLEARANCE
     y_comp = FRONT_CLEARANCE
     x_comp1 = x_comp + OFFSET
@@ -195,36 +182,27 @@ def clbk_scan(msg: LaserScan) -> None:
         if x < x_comp and y < y_comp:
             lst_wall = is_clear = nt_obst = False
             break
-        elif x < x_comp1 and y < y_comp1:
-            lst_wall = is_clear = False
-        elif r < DIST2WALL:
-            lst_wall = False
+        is_clear = is_clear and (x > x_comp1 or y > y_comp1)
+        lst_wall = lst_wall and r > DIST2WALL
         angle += msg.angle_increment
     nt_obstacles["right"] = nt_obst
     regions["right"] = is_clear
     global lost_wall
-    lost_wall = temp and lst_wall
+    lost_wall = lst_wall
 
 
 def stop_robot():
     vel_cmd.linear.x = vel_cmd.angular.z = 0
     vel_pub.publish(vel_cmd)
-    try:
-        sleep(0.3)
-    except rospy.ROSInterruptException:
-        return
+    rospy.sleep(0.3)
 
 
 def find_wall():
-    loop_rate = rospy.Rate(60)
     vel_cmd.linear.x = vel.lin_vel
     vel_cmd.angular.z = 0
     while nt_obstacles["front"] and nt_obstacles["right"]:
         vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return
+        loop_rate.sleep()
     machine_states["Finding Wall"] = False
     if not nt_obstacles["front"]:
         machine_states["Turning Left"] = True
@@ -234,41 +212,29 @@ def find_wall():
 
 
 def turn_left():
-    loop_rate = rospy.Rate(60)
     vel_cmd.angular.z = vel.ang_vel
     vel_cmd.linear.x = 0
     while not nt_obstacles["front"] or regions["right"]:
         vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return
+        loop_rate.sleep()
     stop_robot()
     machine_states["Turning Left"] = False
     machine_states["Following Wall"] = True
 
 
 def follow_wall():
-    loop_rate = rospy.Rate(60)
     vel_cmd.linear.x = vel.lin_vel
-    gain = 10
-    ind1 = int(map0to2pi(radians(-80) - scan.angle_min) / scan.angle_increment)
-    ind2 = int(map0to2pi(radians(-100) - scan.angle_min) / scan.angle_increment)
     while not regions["right"] and nt_obstacles["front"]:
-        range1 = scan.ranges[ind1]
-        range2 = scan.ranges[ind2]
+        range1 = scan.ranges[follow_wall.ind1]
+        range2 = scan.ranges[follow_wall.ind2]
         err = range2 - range1
         if range1 > DIST2WALL or range2 > DIST2WALL or fabs(err) > 0.6:
             vel_cmd.angular.z = 0
         else:
-            vel_cmd.angular.z = gain * err
-            if fabs(vel_cmd.angular.z) > vel.ang_vel:
-                vel_cmd.angular.z = vel.ang_vel * (1 if err > 0 else -1)
+            vel_cmd.angular.z = follow_wall.gain * err
+            vel_cmd.angular.z = vel.ang_vel * (1 if err > 0 else -1) if fabs(vel_cmd.angular.z) > vel.ang_vel else vel_cmd.angular.z
         vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return
+        loop_rate.sleep()
     machine_states["Following Wall"] = False
     if regions["right"]:
         machine_states["Turning Right"] = True
@@ -278,22 +244,15 @@ def follow_wall():
 
 
 def turn_right():
-    loop_rate = rospy.Rate(60)
     vel_cmd.angular.z = -vel.ang_vel
     vel_cmd.linear.x = 0
     while not nt_obstacles["front"]:
         vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return
+        loop_rate.sleep()
     OFFSET = 0.1
     while regions["front"]:
         vel_pub.publish(vel_cmd)
-        try:
-            loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            return
+        loop_rate.sleep()
     OFFSET = 0.05
     stop_robot()
     machine_states["Finding Wall"] = True
@@ -319,26 +278,33 @@ def take_action():
 
 
 def setup():
+    # SETTING UP FUNCTION ATTRIBUTES
+    follow_wall.gain = 10
+    follow_wall.ind1 = int(map0to2pi(radians(-80) - scan.angle_min) / scan.angle_increment)
+    follow_wall.ind2 = int(map0to2pi(radians(-100) - scan.angle_min) / scan.angle_increment)
+    # SETTING UP NODE
     rospy.init_node(NODE_NAME)
     global fw_srvr, sv_srvr, vel_pub, scan_sub
     fw_srvr = rospy.Service(FW_SRV, SetBool, activate_handler)
     sv_srvr = rospy.Service(SV_SRV, SetVel, sv_handler)
     vel_pub = rospy.Publisher(VEL_TOPIC, Twist, queue_size=1)
     scan_sub = rospy.Subscriber(SCAN_TOPIC, LaserScan, clbk_scan, queue_size=1)
+    # SETTING UP RATES
+    global loop_rate
+    loop_rate = rospy.Rate(60)
 
 
 def main():
     setup()
-    loop_rate = rospy.Rate(60)
     while not rospy.is_shutdown():
         if not machine_states["Inactive"]:
             take_action()
         else:
-            try:
-                loop_rate.sleep()
-            except rospy.ROSInterruptException:
-                pass
+            loop_rate.sleep()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass

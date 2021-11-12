@@ -31,14 +31,14 @@ LIN_THRESH = 0.03 # 7 cm
 
 # GLOBALS
 # servers
-gtg_srvr = None # go to goal server
-ug_srvr = None  # update goal server
-set_vel_srvr = None
+gtg_srvr: rospy.Service = None # go to goal server
+ug_srvr: rospy.Service = None  # update goal server
+set_vel_srvr: rospy.Service = None
 # publishers
-vel_pub = None
-nav_err_pub = None
+vel_pub: rospy.Publisher = None
+nav_err_pub: rospy.Publisher = None
 # subsribers / action clients
-tf_listener = None
+tf_listener: tf.TransformListener = None
 # messages
 vel_cmd = Twist()
 nav_err = NavError()
@@ -57,6 +57,7 @@ def stop():
     vel_cmd.linear.x = vel_cmd.angular.z = 0
     vel_pub.publish(vel_cmd)
     rospy.loginfo("\n --- STOPPING ROBOT ---\n")
+    rospy.sleep(0.3)
 
 
 def map0to2pi(angle: float) -> float:
@@ -65,7 +66,7 @@ def map0to2pi(angle: float) -> float:
     while angle > pi_2:
         angle -= pi_2
     while angle < 0:
-        angle = pi_2 - angle
+        angle += pi_2
     return angle
 
 
@@ -86,29 +87,26 @@ def update_error() -> None:
         dx = GOAL.x - translation[0]
         dy = GOAL.y - translation[1]
         des_yaw = atan2(dy, dx)
-        nav_err.yaw_error = normalize_angle(des_yaw - yaw)
-        # TODO: replace normalize_angle() with map0to2pi()
+        nav_err.yaw_error = map0to2pi(des_yaw - yaw)
         nav_err.dist_error = sqrt(dy * dy + dx * dx)
         nav_err_pub.publish(nav_err)
 
 
-def correct_error():
-    """Corrects yaw error"""
+def correct_error() -> None:
+    """Corrects yaw and linear errors"""
     if nav_err.dist_error < LIN_THRESH:
         rospy.loginfo("\n---- Reached Goal! x: {GOAL.x}, y: {GOAL.y} ----\n")
         stop()
         global active
         active = False
     dyaw = normalize_angle(nav_err.yaw_error)
-    vel_cmd.angular.z = cruising_vel.ang_vel = cruising_vel.ang_vel * -1 if (cruising_vel.ang_vel > 0 and dyaw < 0) or (cruising_vel.ang_vel < 0 and dyaw > 0) else cruising_vel.ang_vel
+    vel_cmd.angular.z = -cruising_vel.ang_vel if dyaw < 0 else cruising_vel.ang_vel
+    approaching_vel.ang_vel = -1 * approaching_vel.ang_vel if dyaw * approaching_vel.ang_vel < 0 else approaching_vel.ang_vel
     
     # start correcting for distance error only when angular error is Within limits
     if -ANG_THRESH < dyaw < ANG_THRESH:
         vel_cmd.angular.z = 0
-        if nav_err.dist_error < 0.3:
-            vel_cmd.linear.x = vel_cmd.linear.x * 0.95 + 0.05 * approaching_vel.lin_vel
-        else:
-            vel_cmd.linear.x = cruising_vel.lin_vel
+        vel_cmd.linear.x = vel_cmd.linear.x * 0.95 + 0.05 * approaching_vel.lin_vel if nav_err.dist_error < 0.3 else cruising_vel.lin_vel
     # slow down if error is about to diminish
     elif fabs(dyaw) < radians(15):
         vel_cmd.angular.z = 0.95 * vel_cmd.angular.z + 0.05 * approaching_vel.ang_vel
@@ -116,25 +114,15 @@ def correct_error():
         vel_cmd.linear.x = 0
 
 
-def reset() -> None:
-    """resets the velocity controller
-    * Doesn't change maximum velocities and gains"""
-    stop()
-    global active
-    active = False
-
-
 # handlers
 def set_vel_handler(req: SetVelRequest) -> SetVelResponse:
     """sets the linear and angular velocities at which the robot will chase goal location"""
-    global lin_vel, ang_vel
-    lin_vel = req.lin_vel
-    ang_vel = req.ang_vel
+    cruising_vel.lin_vel = req.lin_vel
+    cruising_vel.ang_vel = req.ang_vel
     return SetVelResponse(success=True)
 
 
 def ug_handler(req: UpdateGoalRequest) -> UpdateGoalRequest:
-    reset()
     GOAL.x = req.goal.x
     GOAL.y = req.goal.y
     GOAL.z = req.goal.z
@@ -147,9 +135,9 @@ def gtg_handler(req: SetBoolRequest) -> SetBoolResponse:
     if req.data and active:
         rospy.loginfo("gtg server already active!")
     elif req.data:
-        reset()
         rospy.loginfo("\n---- gtg server now active! ----\n")
         active = req.data
+        stop()
     elif not req.data and not active:
         rospy.loginfo("gtg server already inactive!")
     else:
@@ -169,10 +157,7 @@ def setup():
     vel_pub = rospy.Publisher(VEL_TOPIC, Twist, queue_size=1)
     tf_listener = tf.TransformListener()
     nav_err_pub = rospy.Publisher(ERR_TOPIC, NavError, queue_size=1)
-    try:
-       tf_listener.waitForTransform(ROBOT_FRAME, WORLD_FRAME, rospy.Time(), rospy.Duration(10))
-    except rospy.exceptions.ROSInterruptException as e:
-        exit(0)
+    tf_listener.waitForTransform(ROBOT_FRAME, WORLD_FRAME, rospy.Time(), rospy.Duration(10))
 
 
 def main():
@@ -185,11 +170,11 @@ def main():
         if active:
             correct_error()
             vel_pub.publish(vel_cmd)
-        try:
             loop_rate.sleep()
-        except rospy.ROSInterruptException:
-            pass
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass

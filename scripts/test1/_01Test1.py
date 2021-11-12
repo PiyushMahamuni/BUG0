@@ -11,7 +11,7 @@ NODE_NAME = "Test1"
 SCAN_TOPIC = "scan"
 
 # GLOBALS
-scan_sub = None
+scan_sub: rospy.Subscriber = None
 
 def clbk_scan(msg: LaserScan):
     min_range_ind = 0

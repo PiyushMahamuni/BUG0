@@ -13,9 +13,9 @@ DTOT = 2 # DISTANCE TO OBSTACLE TRESHOLD, 2 m
 FIELD_OF_VIS = pi / 2 # 90 degrees
 
 # GOLBALS
-look_sub = None
+look_sub: rospy.Subscriber = None
 look_angle = 0
-scan_sub = None
+scan_sub: rospy.Subscriber = None
 
 
 def map0to2pi(angle: float) -> float:
@@ -39,8 +39,8 @@ def clbk_look_angle(msg: Float32) -> None:
 def clbk_scan(msg: LaserScan) -> None:
     """ checks if the 90 degree region around the look_angle is free """
     d = FIELD_OF_VIS / 2
-    start_ind = int((map0to2pi(look_angle - d) - msg.angle_min) / msg.angle_increment)
-    end_ind = int((map0to2pi(look_angle + d) - msg.angle_min) / msg.angle_increment)
+    start_ind = int(map0to2pi(look_angle - d - msg.angle_min) / msg.angle_increment)
+    end_ind = int(map0to2pi(look_angle + d - msg.angle_min) / msg.angle_increment)
     is_clear = True
     if start_ind > end_ind:
         for r in msg.ranges[start_ind:]:

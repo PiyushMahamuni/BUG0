@@ -51,7 +51,7 @@ def map0to2pi(angle: float) -> float:
     while angle > pi_2:
         angle -= pi_2
     while angle < 0:
-        angle = pi_2 - angle
+        angle += pi_2
     return angle
 
 
@@ -66,8 +66,6 @@ def normalize_angle(angle: float) -> float:
 
 
 def update_pose() -> None:
-    # TODO: remove following line
-    # tf_listener = tf.TransformListener()
     translation, orientation = tf_listener.lookupTransform(WORLD_FRAME, ROBOT_FRAME, rospy.Time())
     if translation:
         _, _, yaw = tf.transformations.euler_from_quaternion(orientation)
@@ -140,7 +138,7 @@ def setup():
     nav_err_pub = rospy.Publisher(ERR_TOPIC, NavError, queue_size=1)
     try:
        tf_listener.waitForTransform(ROBOT_FRAME, WORLD_FRAME, rospy.Time(), rospy.Duration(10))
-    except rospy.exceptions.ROSInterruptException as e:
+    except rospy.exceptions.ROSInterruptException:
         exit(0)
 
 
@@ -150,7 +148,7 @@ def main():
     loop_rate = rospy.Rate(30)
 
     while not rospy.is_shutdown():
-        while not rospy.is_shutdown() and active:
+        if active:
             update_pose()
             correct_yaw()
             if to_correct_dist:

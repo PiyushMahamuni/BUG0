@@ -9,7 +9,7 @@ NODE_NAME = "Test2"
 VEL_TOPIC = "cmd_vel"
 
 # GLOBALS
-vel_pub = None
+vel_pub: rospy.Publisher = None
 vel_cmd = Twist()
 
 

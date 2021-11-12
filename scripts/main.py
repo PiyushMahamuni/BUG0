@@ -60,7 +60,7 @@ def map0to2pi(angle: float) -> float:
 
 
 def look_for_obstacles(angle: float, scan: LaserScan, fov: float=pi) -> bool:
-    f"""Returns False if any obstalces closer are found in the given direction"""
+    f"""Returns False if any obstalces are found in the given direction"""
     fov /= 2
     end_ind = int(map0to2pi(angle + fov - scan.angle_min) / scan.angle_increment)
     start_ind = int(map0to2pi(angle - fov - scan.angle_min) / scan.angle_increment)
@@ -135,4 +135,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except rospy.ROSInterruptException:
+        pass
