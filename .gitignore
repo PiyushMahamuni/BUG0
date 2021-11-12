@@ -10,7 +10,6 @@ msg/*ActionFeedback.msg
 msg/*ActionGoal.msg
 msg/*ActionResult.msg
 msg/*Feedback.msg
-msg/*Goal.msg
 msg/*Result.msg
 msg/_*.py
 build_isolated/
