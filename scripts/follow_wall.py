@@ -278,10 +278,6 @@ def take_action():
 
 
 def setup():
-    # SETTING UP FUNCTION ATTRIBUTES
-    follow_wall.gain = 10
-    follow_wall.ind1 = int(map0to2pi(radians(-80) - scan.angle_min) / scan.angle_increment)
-    follow_wall.ind2 = int(map0to2pi(radians(-100) - scan.angle_min) / scan.angle_increment)
     # SETTING UP NODE
     rospy.init_node(NODE_NAME)
     global fw_srvr, sv_srvr, vel_pub, scan_sub
@@ -292,6 +288,11 @@ def setup():
     # SETTING UP RATES
     global loop_rate
     loop_rate = rospy.Rate(60)
+    # SETTING UP FUNCTION ATTRIBUTES
+    rospy.wait_for_message(SCAN_TOPIC, LaserScan)
+    follow_wall.gain = 10
+    follow_wall.ind1 = int(map0to2pi(radians(-80) - scan.angle_min) / scan.angle_increment)
+    follow_wall.ind2 = int(map0to2pi(radians(-100) - scan.angle_min) / scan.angle_increment)
 
 
 def main():
